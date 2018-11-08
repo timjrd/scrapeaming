@@ -1,35 +1,47 @@
-module Process where
+module Process
+  ( withProcess
+  , hFold ) where
 
+import Control.Monad
 import Control.Exception
 
 import System.IO
 import System.Process
 import System.Timeout
 
-data Stream = Stdout | Stderr
+bracket' :: IO a -> (a -> IO b) -> (a -> IO c) -> IO c
+bracket' acquire release use = bracket
+  (uninterruptibleMask_ acquire)
+  (uninterruptibleMask_ . release)
+  use
 
-withProcess :: FilePath -> [String] -> Stream -> Int -> a
-            -> (a -> String -> IO (Maybe a)) -> IO ()
-withProcess path args stream time init consume = bracket acquire release use
+withProcess :: FilePath -> [String]
+            -> (Handle -> Handle -> Handle -> IO a) -> IO a
+withProcess path args f = bracket' acquire release use
   where
-    acquire :: IO (Handle, ProcessHandle)
-    acquire = case stream of
-      Stdout -> cr pr {std_out = CreatePipe} >>= \(_, Just h, _, p) -> return (h,p)
-      Stderr -> cr pr {std_err = CreatePipe} >>= \(_, _, Just h, p) -> return (h,p)
-      where
-        cr = createProcess
-        pr = proc path args
+    acquire = createProcess (proc path args)
+              { std_in  = CreatePipe
+              , std_out = CreatePipe
+              , std_err = CreatePipe }
+              >>= \(Just hin, Just hout, Just herr, hp) ->
+                    return (hin,hout,herr,hp)
 
-    release (h,p) = hClose h >> terminateProcess p
+    release (hin,hout,herr,hp) = do
+      hClose hin
+      hClose hout
+      hClose herr
+      terminateProcess hp
 
-    use (h,_) = timeout (time*10^6) (f h $ Just init) >> return ()
-      where
-        f _ Nothing  = return Nothing
-        f h (Just x) = do
-          eof <- hIsEOF h
-          if eof
-            then return Nothing
-            else hGetLine h
-                 >>= consume x
-                 >>= f h
+    use (hin,hout,herr,_) = f hin hout herr
 
+hFold :: Handle -> a -> (a -> String -> IO (Bool,a)) -> IO a
+hFold h init f = g (True,init)
+  where
+    g (False, x) = return x
+    g (True , x) = do
+      eof <- hIsEOF h
+      if eof
+        then return x
+        else hGetLine h
+             >>= f x
+             >>= g

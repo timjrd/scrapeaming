@@ -61,7 +61,9 @@ executable scrapeaming
   -- other-extensions:    
   
   -- Other library packages from which modules are imported.
-  build-depends:       base, process, stm
+  build-depends:       base, filepath, process, stm,
+                       async,
+                       temporary
   
   -- Directories containing source files.
   hs-source-dirs:      src
