@@ -1,19 +1,16 @@
 module Process
   ( withProcess
-  , hFold ) where
+  , hFold
+  , hGetLines ) where
 
 import Control.Monad
 import Control.Exception
 
 import System.IO
 import System.Process
-import System.Timeout
 
-bracket' :: IO a -> (a -> IO b) -> (a -> IO c) -> IO c
-bracket' acquire release use = bracket
-  (uninterruptibleMask_ acquire)
-  (uninterruptibleMask_ . release)
-  use
+bracket' acquire release use = uninterruptibleMask $ \restore ->
+  bracket acquire release $ restore . use
 
 withProcess :: FilePath -> [String]
             -> (Handle -> Handle -> Handle -> IO a) -> IO a
@@ -45,3 +42,6 @@ hFold h init f = g (True,init)
         else hGetLine h
              >>= f x
              >>= g
+
+hGetLines :: Handle -> IO [String]
+hGetLines h = fmap reverse $ hFold h [] $ \lines line -> return (True,line:lines)

@@ -4,6 +4,7 @@ module Task
   , roundRobin
   , spread
   , withTask
+  , withInputs
   , forInput
   , foldInput ) where
 
@@ -20,6 +21,7 @@ feed :: [a] -> Task a b -> Task () b
 feed xs task _ output = do
   inQ <- atomically $ newTQueue
   mapM_ (atomically . writeTQueue inQ . Just) xs
+  atomically $ writeTQueue inQ Nothing
   task (atomically $ readQ inQ) output
 
 roundRobin :: [Task () b] -> Task () b
@@ -44,8 +46,8 @@ roundRobin tasks _ output = do
           output x
           collect (q:next) qs
         
-spread :: Task a b -> Int -> Task b c -> Task a c
-spread t1 n t2 input output = do
+spread :: Int -> Task a b -> Task b c -> Task a c
+spread j t1 t2 input output = do
   inQ  <- atomically $ newTQueue
   outQ <- atomically $ newTQueue
   feed inQ
@@ -57,7 +59,7 @@ spread t1 n t2 input output = do
       atomically $ writeTQueue inQ Nothing
 
     jobs inQ outQ = do
-      replicateConcurrently_ n (job inQ outQ)
+      replicateConcurrently_ j (job inQ outQ)
       atomically $ writeTQueue outQ Nothing
 
     job inQ outQ = t2 (atomically (readQ inQ)) (atomically . writeTQueue outQ . Just)
@@ -67,9 +69,23 @@ spread t1 n t2 input output = do
 withTask :: Task () b -> (IO (Maybe b) -> IO c) -> IO c
 withTask task f = do
   outQ <- atomically $ newTQueue
-  let job = task (return Nothing) (atomically . writeTQueue outQ . Just)
-  withAsync job $ \_ -> f $ atomically $ readQ outQ
-  
+  withAsync (job outQ) $ \_ -> f $ atomically $ readQ outQ
+  where
+    job outQ = do
+      task (return Nothing) (atomically . writeTQueue outQ . Just)
+      atomically $ writeTQueue outQ Nothing
+
+withInputs :: IO a -> IO (Maybe b) -> (IO (Maybe (Either a b)) -> IO c) -> IO c
+withInputs as bs f = do
+  aQ      <- atomically newTQueue
+  eitherQ <- atomically newTQueue
+  withAsync (collect aQ eitherQ) $ \_ -> f $ atomically $ readQ eitherQ
+  where
+    collect aQ eitherQ = forever (as >>= atomically . writeTQueue aQ . Just)
+      `concurrently_`    forQ     aQ (atomically . writeTQueue eitherQ . Just . Left)
+      `concurrently_` do forInput bs (atomically . writeTQueue eitherQ . Just . Right)
+                         atomically $ writeTQueue aQ Nothing
+
 forInput :: IO (Maybe a) -> (a -> IO ()) -> IO ()
 forInput input f = foldInput input () $ \_ x -> f x
 

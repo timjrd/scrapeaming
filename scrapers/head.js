@@ -1,5 +1,5 @@
 function output(msg) {
-    const k = " " + KEY + " ";
+    const k = " " + TOKEN + " ";
     if (msg !== null)
 	console.log(k + msg + k);
 }

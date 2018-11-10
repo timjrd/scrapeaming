@@ -48,7 +48,7 @@ cat > $tmp/ext/manifest.json <<EOF
 EOF
 
 echo "const QUERY = '$query';" >> $tmp/ext/$ext.js
-echo "const KEY   = '$key';"   >> $tmp/ext/$ext.js
+echo "const TOKEN = '$key';"   >> $tmp/ext/$ext.js
 cat ../scrapers/head.js        >> $tmp/ext/$ext.js
 cat ../scrapers/$ext.js        >> $tmp/ext/$ext.js
 
