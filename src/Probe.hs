@@ -46,10 +46,11 @@ instance Eq Result where
 instance Ord Result where
   compare a b
     | a == b               = EQ
-    | max (d a) (d b) <  t = compare (q a, d a) (q b, d b)
-    | abs (d a - d b) >= t = compare (d a) (d b)
-    | otherwise            = compare (q a, d a) (q b, d b)
+    | abs (d a - d b) <= t = byQuality
+    | otherwise            = byDuration
     where
+      byDuration = compare (d a, q a) (d b, q b)
+      byQuality  = compare (q a, d a) (q b, d b)
       d = duration
       q = quality
       t = 60 * 10
