@@ -32,7 +32,7 @@ data Result = Result
   , title    :: String }
   deriving Show
 
-data RawResult = RawResult
+data RawResult = NoParse | RawResult
   { rawWidth    :: Rational
   , rawHeight   :: Rational
   , rawDuration :: Rational
@@ -45,21 +45,23 @@ instance Eq Result where
 
 instance Ord Result where
   compare a b
-    | a == b      = EQ
-    | d > 60 * 10 = compare (duration a) (duration b)
-    | otherwise   = compare
-                    (quality a, duration a)
-                    (quality b, duration b)
+    | a == b               = EQ
+    | max (d a) (d b) <  t = compare (q a, d a) (q b, d b)
+    | abs (d a - d b) >= t = compare (d a) (d b)
+    | otherwise            = compare (q a, d a) (q b, d b)
     where
-      d = abs $ duration a - duration b
+      d = duration
+      q = quality
+      t = 60 * 10
 
 probe :: Logger -> Task [Url] Result
 probe log input output = forInput input $ \srcs -> do
-  raw <- rawProbe (head srcs)
-  case toResult srcs <$> raw of
-    Nothing -> log $ Log Warning "unable to probe" srcs
-    Just result -> do
-      output result
+  raw <- rawProbe $ head srcs
+  case raw of
+    Nothing      -> log $ Log Warning "unable to probe"                  srcs
+    Just NoParse -> log $ Log Error   "unable to parse ffprobe's output" srcs
+    Just res     -> do
+      output $ toResult srcs res
       log $ Log Important "found suitable result" srcs
 
 rawProbe :: Url -> IO (Maybe RawResult)
@@ -72,8 +74,9 @@ rawProbe url = do
     , url ]
     $ \_ hout _ -> do
     result <- hGetLines hout
-    case result of
-      mw:mh:md:mb:mt -> return $ do
+    return $ case result of
+      mw:mh:md:mb:mt ->
+        maybe (Just NoParse) Just $ do
         w <- readRational mw
         h <- readRational mh
         d <- readRational md
@@ -84,7 +87,8 @@ rawProbe url = do
           , rawDuration = max 0 d
           , rawBitrate  = max 0 b
           , rawTitle    = concat mt }
-      _ -> return Nothing
+      [] -> Nothing
+      _  -> Just NoParse
 
 toResult :: [Url] -> RawResult -> Result
 toResult srcs raw = Result
@@ -117,7 +121,7 @@ loWidth  = 720
 loHeight = 576
 
 -- Computed from samples.
-loQuality = (1197773 % 737280, 0.2)
+loQuality = (1197773 % 737280, 0.3)
 hiQuality = (2489777 % 460800, 0.9)
 
 relQuality :: Rational -> Rational

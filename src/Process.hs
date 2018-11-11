@@ -28,6 +28,7 @@ withProcess path args f = bracket' acquire release use
       hClose hout
       hClose herr
       terminateProcess hp
+      waitForProcess   hp
 
     use (hin,hout,herr,_) = f hin hout herr
 
