@@ -1,15 +1,19 @@
 module Driver
-  ( Log(..)
+  ( Result
+  , Log(..)
   , LogTag(..)
   , withDriver
   , forInput
   , foldInput
+  , foldInputCatch
   , sources
   , quality
   , duration
   , width
   , height
   , title ) where
+
+import Data.List
 
 import Environment
 import Task

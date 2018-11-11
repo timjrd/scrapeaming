@@ -40,6 +40,19 @@ data RawResult = RawResult
   , rawTitle    :: String }
   deriving Show
 
+instance Eq Result where
+  a == b = head (sources a) == head (sources b)
+
+instance Ord Result where
+  compare a b
+    | a == b      = EQ
+    | d > 60 * 10 = compare (duration a) (duration b)
+    | otherwise   = compare
+                    (quality a, duration a)
+                    (quality b, duration b)
+    where
+      d = abs $ duration a - duration b
+
 probe :: Logger -> Task [Url] Result
 probe log input output = forInput input $ \srcs -> do
   raw <- rawProbe (head srcs)

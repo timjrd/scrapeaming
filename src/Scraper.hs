@@ -78,33 +78,40 @@ task display log scraper ext token input output = do
   chromium <- getChromium
   withSystemTempDirectory' "scrapeaming-chromium"
     $ \tmp -> forInput input
-    $ \xs  -> void $ withProcess chromium
-    [ "--disable-gpu"
-    , "--enable-logging=stderr"
-    , "--display=:"       ++ show display
-    , "--user-data-dir="  ++ tmp
-    , "--load-extension=" ++ ext
-    , head xs ]
-    $ \_ _ herr -> do
+    $ \xs  -> void $ do
     found  <- newIORef False
-    result <- TO.timeout (timeout scraper * 10^6)
-              $ hFold herr 0 (processLine found xs)
+    result <- job chromium tmp xs found
+    found' <- readIORef found
     case result of
       Nothing -> do
         found' <- readIORef found
         if found'
-          then log $ Log Info    "scraper has timed out with some data" xs
-          else log $ Log Warning "scraper has timed out with no data"   xs
-      Just n | n >= maxOutputs scraper -> log $ Log Info  "scraper has collected enough data" xs
-             | otherwise               -> log $ Log Error "scraper was interrupted"           xs
+          then log' Info    "has timed out with some data" xs
+          else log' Warning "has timed out with no data"   xs
+      Just n | n > maxOutputs scraper -> log' Info  "has collected enough data" xs
+             | otherwise              -> log' Error "was interrupted"           xs
+             
   where
+    log' tag msg trace = log $ Log tag (name scraper ++ " scraper " ++ msg) trace
+    
+    job chromium tmp xs found = withProcess chromium
+      [ "--disable-gpu"
+      , "--enable-logging=stderr"
+      , "--display=:"       ++ show display
+      , "--user-data-dir="  ++ tmp
+      , "--load-extension=" ++ ext
+      , head xs ]
+      $ \_ _ herr -> TO.timeout (timeout scraper * 10^6)
+                     $ hFold herr 0 (processLine found xs)
+    
     processLine found xs n line = case my of
       Nothing -> return (True,n)
       Just [] -> return (True,n)
       Just y  -> uninterruptibleMask_ $ do
         output (y:xs)
         writeIORef found True
-        return (n+1 >= maxOutputs scraper, n+1)
+        log' Info "found some url" (y:xs)
+        return (n+1 <= maxOutputs scraper, n+1)
       where
         my = words line
           & dropWhile (/=token)

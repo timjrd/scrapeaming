@@ -6,13 +6,13 @@ module Task
   , withTask
   , withInputs
   , forInput
-  , foldInput ) where
+  , foldInput
+  , foldInputCatch ) where
 
 import Control.Monad
-
 import Control.Monad.STM
 import Control.Concurrent.STM.TQueue
-
+import Control.Exception
 import Control.Concurrent.Async
 
 type Task a b = IO (Maybe a) -> (b -> IO ()) -> IO ()
@@ -82,21 +82,36 @@ withInputs as bs f = do
   withAsync (collect aQ eitherQ) $ \_ -> f $ atomically $ readQ eitherQ
   where
     collect aQ eitherQ = forever (as >>= atomically . writeTQueue aQ . Just)
-      `concurrently_`    forQ     aQ (atomically . writeTQueue eitherQ . Just . Left)
+    
+      `concurrently_` do forQ     aQ (atomically . writeTQueue eitherQ . Just . Left)
+                         atomically $ writeTQueue eitherQ Nothing
+                         
       `concurrently_` do forInput bs (atomically . writeTQueue eitherQ . Just . Right)
                          atomically $ writeTQueue aQ Nothing
 
 forInput :: IO (Maybe a) -> (a -> IO ()) -> IO ()
 forInput input f = foldInput input () $ \_ x -> f x
 
-foldInput :: IO (Maybe a) -> b -> (b -> a -> IO b) -> IO b
-foldInput input acc f = do
+type FoldInput a b = IO (Maybe a) -> b -> (b -> a -> IO b) -> IO b
+
+foldInput :: FoldInput a b
+foldInput = foldInputWith foldInput
+
+foldInputCatch :: Exception e => (b -> e -> IO b)
+               -> FoldInput a b
+foldInputCatch h input acc f = uninterruptibleMask g
+  where
+    g restore = (`catch` h acc) $ restore $
+      foldInputWith (foldInputCatch h) input acc f
+
+foldInputWith :: FoldInput a b -> FoldInput a b
+foldInputWith g input acc f = do
   mx <- input
   case mx of
     Nothing  -> return acc
     (Just x) -> do
       acc' <- f acc x
-      foldInput input acc' f
+      g input acc' f
 
 readQ :: TQueue (Maybe a) -> STM (Maybe a)
 readQ q = do

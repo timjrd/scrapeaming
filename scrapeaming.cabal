@@ -74,7 +74,8 @@ executable scrapeaming
                        async,
                        temporary,
                        entropy,
-                       network-uri
+                       network-uri,
+                       ansi-terminal
   
   -- Directories containing source files.
   hs-source-dirs:      src
