@@ -6,8 +6,7 @@ module Task
   , withTask
   , withInputs
   , forInput
-  , foldInput
-  , foldInputCatch ) where
+  , foldInput ) where
 
 import Control.Monad
 import Control.Monad.STM
@@ -92,26 +91,14 @@ withInputs as bs f = do
 forInput :: IO (Maybe a) -> (a -> IO ()) -> IO ()
 forInput input f = foldInput input () $ \_ x -> f x
 
-type FoldInput a b = IO (Maybe a) -> b -> (b -> a -> IO b) -> IO b
-
-foldInput :: FoldInput a b
-foldInput = foldInputWith foldInput
-
-foldInputCatch :: Exception e => (b -> e -> IO b)
-               -> FoldInput a b
-foldInputCatch h input acc f = uninterruptibleMask g
-  where
-    g restore = (`catch` h acc) $ restore $
-      foldInputWith (foldInputCatch h) input acc f
-
-foldInputWith :: FoldInput a b -> FoldInput a b
-foldInputWith g input acc f = do
+foldInput :: IO (Maybe a) -> b -> (b -> a -> IO b) -> IO b
+foldInput input acc f = do
   mx <- input
   case mx of
     Nothing  -> return acc
     (Just x) -> do
       acc' <- f acc x
-      g input acc' f
+      foldInput input acc' f
 
 readQ :: TQueue (Maybe a) -> STM (Maybe a)
 readQ q = do

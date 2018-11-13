@@ -1,11 +1,12 @@
 module Driver
-  ( Result
+  ( Driver
+  , Result
   , Log(..)
   , LogTag(..)
   , withDriver
   , forInput
   , foldInput
-  , foldInputCatch
+  , addResult
   , sources
   , quality
   , duration
@@ -66,3 +67,7 @@ driver display query f = do
         `withTask` \out -> withInputs logs out f
   where
     feed' src (_,init) = feed [[init]] src
+
+addResult :: Result -> [Result] -> [Result]
+addResult x xs | x `elem` xs = xs
+               | otherwise   = sortBy (flip compare) $ x : xs

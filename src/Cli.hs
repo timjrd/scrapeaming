@@ -2,6 +2,7 @@ module Cli (main) where
 
 import Control.Exception
 
+import Data.IORef
 import Data.List
 
 import System.Environment
@@ -10,28 +11,32 @@ import System.Console.ANSI
 
 import Driver
 
-main :: IO ()
-main = uninterruptibleMask $ \restore ->
-  (restore search `catch` interrupted (True,[]))
-  >>= printDone >>= printResults
+main :: String -> IO ()
+main query = uninterruptibleMask $ \restore -> do
+  results <- newIORef []
+  xe      <- try $ restore $ search query results
+  case xe of
+    Right x -> printCompleted >> printResults x
+    Left  e -> do
+      printInterrupted
+      readIORef results >>= printResults
+      case e of
+        UserInterrupt -> return ()
+        _             -> throw e
 
-search :: IO (Bool,[Result])
-search = do
-  [query] <- getArgs
-  printStatus []
+search :: String -> IORef [Result] -> IO [Result]
+search query results = do
+  uninterruptibleMask_ $ printStatus []
   withDriver
-    $ \driver  -> driver query
-    $ \input   -> foldInputCatch interrupted input (True,[]) processInput
-
-processInput :: (Bool,[Result]) -> Either Log Result -> IO (Bool,[Result])
-processInput (_,xs) (Left  l) = printLog l >> printStatus xs >> return (True,xs)
-processInput (_,xs) (Right x) = printStatus ys >> return (True,ys)
-  where ys | x `elem` xs = xs
-           | otherwise   = sortBy (flip compare) $ x:xs
-
-interrupted :: (Bool,a) -> AsyncException -> IO (Bool,a)
-interrupted (_,x) UserInterrupt = return (False,x)
-interrupted _ e = throw e
+    $ \driver -> driver query
+    $ \input  -> foldInput input []
+    $ \xs lx  -> uninterruptibleMask_ $ case lx of
+    Left  l   -> printLog l >> printStatus xs >> return xs
+    Right x   -> do
+      let ys = addResult x xs
+      writeIORef results ys
+      printStatus ys
+      return ys
 
 printLog (Log tag msg trace) = do
   clear
@@ -69,8 +74,8 @@ printStatus xs  = do
 
 searching = def "searching... "
 
-printDone (True , x) = clear >> green  "search over." >> return x
-printDone (False, x) = clear >> yellow "interrupted." >> return x
+printCompleted   = clear >> green  "search completed."
+printInterrupted = clear >> yellow "search interrupted."
 
 printResults [] = ret >> yellow "no videos found." >> ret
 printResults xs = do
@@ -130,7 +135,6 @@ yellow = colored Yellow
 red    = colored Red
 bold   = withSGR [SetConsoleIntensity BoldIntensity]
 
-colored color = withSGR [ SetColor Background Dull  color
-                        , SetColor Foreground Vivid White ]
+colored color = withSGR [SetColor Foreground Dull color]
 
 withSGR sgr str = setSGR sgr >> def str >> setSGR [Reset]

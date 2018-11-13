@@ -52,6 +52,8 @@ cabal-version:       >=1.10
 executable scrapeaming
   -- .hs or .lhs file containing the Main module.
   main-is:             Main.hs
+
+  ghc-options:         -threaded
   
   -- Modules included in this executable, other than Main.
   other-modules:       Environment
@@ -65,18 +67,29 @@ executable scrapeaming
                        Logger
                        Driver
                        Cli
+                       Server
   
   -- LANGUAGE extensions used by modules in this package.
   -- other-extensions:    
   
   -- Other library packages from which modules are imported.
-  build-depends:       base, filepath, process, stm, bytestring,
+  build-depends:       base,
+                       filepath,
+                       process,
+                       stm,
+                       bytestring,
+                       containers,
+                       transformers,
+                       unix,
+                       
                        async,
                        temporary,
                        entropy,
                        network-uri,
-                       ansi-terminal
-  
+                       ansi-terminal,
+                       happstack-server,
+                       json
+                       
   -- Directories containing source files.
   hs-source-dirs:      src
   

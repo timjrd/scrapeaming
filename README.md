@@ -26,4 +26,4 @@ instances in parallel and in the background. Depending on your
 hardware configuration this could considerably slows down your
 system. You can adjust the level of parallelism by setting the
 environment variable `SCRAPEAMING_JOBS` which defaults to
-`10 * number of cores`.
+`2 * number of cores`.

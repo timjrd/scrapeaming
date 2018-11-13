@@ -1,3 +1,4 @@
+{-# LANGUAGE DeriveDataTypeable #-}
 module Probe
   ( Result
   , probe
@@ -8,6 +9,7 @@ module Probe
   , height
   , title ) where
 
+import Data.Data
 import Data.Function ((&))
 import Data.Maybe
 import Data.Ratio
@@ -30,7 +32,7 @@ data Result = Result
   , width    :: Int
   , height   :: Int
   , title    :: String }
-  deriving Show
+  deriving (Show, Data)
 
 data RawResult = NoParse | RawResult
   { rawWidth    :: Rational

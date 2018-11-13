@@ -9,11 +9,9 @@ import Control.Concurrent.STM.TQueue
 
 import Control.Concurrent.Async
 
-type Url = String
-
 data LogTag = Important | Info | Warning | Error
 
-data Log = Log LogTag String [Url]
+data Log = Log LogTag String [String]
 
 type Logger = Log -> IO ()
 
