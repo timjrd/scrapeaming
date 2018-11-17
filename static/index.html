@@ -4,9 +4,33 @@
     <meta charset="utf-8">
     <title>scrapeaming</title>
     <link rel="stylesheet" href="style.css">
-    <script src="script.js"></script>
   </head>
-  <body>
-    <h1>Hello World!</h1>
+  <body class="init">
+    <div>
+      
+      <header>
+	<h1>scrapeaming</h1>
+
+	<div class="inputs">
+	  <input id="query"  type="search" onkeydown="onSearch(event)" value="Agent 327: Operation Barbershop"/>
+	  <input id="search" type="submit" onkeydown="onSearch(event)" onclick="onSearch(event)" value="Search"/>
+	  <input id="cancel" type="submit" onkeydown="onCancel(event)" onclick="onCancel(event)" value="Cancel"/>
+	  
+	  <div class="dot a"></div>
+	  <div class="dot b"></div>
+	  <div class="dot c"></div>
+	</div>
+      </header>
+
+      <ul id="logs"></ul>
+
+      <div id="video"></div>
+      
+      <table id="results">
+      </table>
+      
+    </div>
+    
+    <script src="script.js"></script>
   </body>
 </html>

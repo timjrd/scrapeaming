@@ -98,31 +98,35 @@ newJob pool driver log query = do
   where
     job token = driver query $ \input -> do
       result <- foldInput input emptyStatus f
-      setStatus result { done = True }
+      setStatus pool token result { done = True }
       where
         f xs (Left l@(Log tag msg trace)) = do
           log $ Log tag msg $ trace ++ [token]
           let ys = xs { logs = take maxLogs $ logStr l : logs xs }
-          setStatus ys
+          setStatus pool token ys
           return ys
           
         f xs (Right x) = do
           let ys = xs { results = addResult x $ results xs }
-          setStatus ys
+          setStatus pool token ys
           return ys
         
-        setStatus x = atomically $ modifyTVar' pool $
-          M.adjust (\(_,stop) -> (x,stop)) token
-
 getStatus :: Pool -> Token -> IO (Maybe Status)
 getStatus pool token = atomically (readTVar pool) >>= return . fmap fst . M.lookup token
+
+setStatus :: Pool -> Token -> Status -> IO ()
+setStatus pool token x = atomically $ modifyTVar' pool $
+  M.adjust (\(_,stop) -> (x,stop)) token
 
 cancelJob :: Pool -> Token -> IO Bool
 cancelJob pool token = do
   jobs <- atomically $ readTVar pool
   case M.lookup token jobs of
-    Nothing       -> return False
-    Just (_,stop) -> stop >> return True
+    Nothing            -> return False
+    Just (status,stop) -> do
+      stop
+      setStatus pool token status { done = True }
+      return True
 
 logStr :: Log -> String
 logStr (Log _ msg trace) = intercalate " @ " $ msg : trace
