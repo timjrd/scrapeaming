@@ -27,9 +27,10 @@ import Logger
 type Pool = TVar (M.Map Token (Status, IO ()))
 
 data Status = Status
-  { results :: [Result]
-  , logs    :: [String]
-  , done    :: Bool }
+  { results  :: [Result]
+  , logs     :: [String]
+  , logCount :: Int
+  , done     :: Bool }
   deriving (Data)
 
 instance ToMessage Status where
@@ -38,7 +39,7 @@ instance ToMessage Status where
 
 maxLogs = 10
 
-emptyStatus = Status [] [] False
+emptyStatus = Status [] [] 0 False
 
 main :: Int -> IO ()
 main port = uninterruptibleMask $ \restore -> do
@@ -102,7 +103,8 @@ newJob pool driver log query = do
       where
         f xs (Left l@(Log tag msg trace)) = do
           log $ Log tag msg $ trace ++ [token]
-          let ys = xs { logs = take maxLogs $ logStr l : logs xs }
+          let ys = xs { logs = take maxLogs $ logStr l : logs xs
+                      , logCount = logCount xs + 1 }
           setStatus pool token ys
           return ys
           

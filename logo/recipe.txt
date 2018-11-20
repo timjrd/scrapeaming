@@ -1,0 +1,21 @@
+inkscape -z base.svg -d 800 -e base.png
+cp base.png logo.png
+gimp logo.png
+  extend canvas size by 50px and center
+  gaussian blur 15px
+  motion blur linear 180° 70px
+  threshold alpha 30
+  overwrite
+cp logo.png /tmp/logo.png
+inkscape /tmp/logo.png
+  trace bitmap
+  fill white
+  stroke black 0.5px round
+  duplicate
+  fill black
+  blur 0.5%
+  opacity 30%
+  translate Y-0.5
+  move to background
+  save as logo.svg
+inkscape -z logo.svg -l scrapeaming.svg

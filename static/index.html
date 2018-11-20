@@ -4,33 +4,33 @@
     <meta charset="utf-8">
     <title>scrapeaming</title>
     <link rel="stylesheet" href="style.css">
+    <script src="script.js" defer></script>
   </head>
-  <body class="init">
+  <body>
     <div>
       
       <header>
-	<h1>scrapeaming</h1>
-
+	<h1 class="hide">
+	  <a href="https://github.com/timjrd/scrapeaming">
+	    <img src="scrapeaming.svg" alt="scrapeaming"/>
+	  </a>
+	</h1>
+	
 	<div class="inputs">
-	  <input id="query"  type="search" onkeydown="onSearch(event)" value="Agent 327: Operation Barbershop"/>
-	  <input id="search" type="submit" onkeydown="onSearch(event)" onclick="onSearch(event)" value="Search"/>
-	  <input id="cancel" type="submit" onkeydown="onCancel(event)" onclick="onCancel(event)" value="Cancel"/>
+	  <input id="query"  class="hide" type="search" onkeydown="onSearch(event)" value="Agent 327: Operation Barbershop"/>
+	  <input id="search" class="hide" type="submit" onkeydown="onSearch(event)" onclick="onSearch(event)" value="Search"/>
+	  <input id="cancel" class="hide" type="submit" onkeydown="onCancel(event)" onclick="onCancel(event)" value="Cancel"/>
 	  
-	  <div class="dot a"></div>
-	  <div class="dot b"></div>
-	  <div class="dot c"></div>
+	  <div class="dot a" class="show"></div>
+	  <div class="dot b" class="show"></div>
+	  <div class="dot c" class="show"></div>
 	</div>
       </header>
-
-      <ul id="logs"></ul>
-
-      <div id="video"></div>
       
-      <table id="results">
-      </table>
+      <ul id="logs" class="hide"></ul>
+      <video id="video" class="hide" controls autoplay></video>
+      <table id="results"></table>
       
     </div>
-    
-    <script src="script.js"></script>
   </body>
 </html>
