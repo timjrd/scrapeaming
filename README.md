@@ -7,6 +7,7 @@
 Install the [Nix package manager](https://nixos.org/nix/):
 ```
 curl https://nixos.org/nix/install | sh
+source ~/.nix-profile/etc/profile.d/nix.sh
 ```
 
 ## Build
@@ -30,8 +31,7 @@ Beware that this will spawn quite a lot of `chromium` and `ffprobe`
 instances in parallel and in the background. Depending on your
 hardware configuration this could considerably slows down your
 system. You can adjust the level of parallelism by setting the
-environment variable `SCRAPEAMING_JOBS` which defaults to `2 * number
-of cores`. There is currently a bug in `Task.hs` resulting in a lot
-more of jobs to be launched, though.
+environment variable `SCRAPEAMING_JOBS` which defaults to `4 * number
+of cores`.
 
 **Please remember it's still work in progress.**

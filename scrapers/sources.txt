@@ -1,0 +1,4 @@
+google     https://www.google.com/
+bing       https://www.bing.com/
+yahoo      https://search.yahoo.com/
+duckduckgo https://duckduckgo.com/

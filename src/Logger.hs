@@ -7,8 +7,6 @@ module Logger
 import Control.Monad.STM
 import Control.Concurrent.STM.TQueue
 
-import Control.Concurrent.Async
-
 data LogTag = Important | Info | Warning | Error
 
 data Log = Log LogTag String [String]

@@ -1,5 +1,7 @@
 module Task
   ( Task
+  , dedupOn
+  , bind
   , feed
   , roundRobin
   , spread
@@ -11,22 +13,42 @@ module Task
 import Control.Monad
 import Control.Monad.STM
 import Control.Concurrent.STM.TQueue
-import Control.Exception
 import Control.Concurrent.Async
+
+import Data.Set
 
 type Task a b = IO (Maybe a) -> (b -> IO ()) -> IO ()
 
+dedupOn :: Ord b => (a -> b) -> Task a a
+dedupOn f input output = void $ foldInput input empty $ \ys x ->
+  let y = f x in if member y ys
+  then return ys
+  else output x >> return (insert y ys)
+
+bind :: Task a b -> Task b c -> Task a c
+bind t1 t2 input output = do
+  outQ <- atomically newTQueue
+
+  let job1 = t2 (atomically $ readQ outQ) output
+      job2 = do t1 input (atomically . writeTQueue outQ . Just)
+                atomically $ writeTQueue outQ Nothing
+
+  concurrently_ job1 job2
+
 feed :: [a] -> Task a b -> Task () b
 feed xs task _ output = do
-  inQ <- atomically $ newTQueue
-  mapM_ (atomically . writeTQueue inQ . Just) xs
-  atomically $ writeTQueue inQ Nothing
-  task (atomically $ readQ inQ) output
+  inQ <- atomically newTQueue
+  
+  let job1 = task (atomically $ readQ inQ) output
+      job2 = do mapM_ (atomically . writeTQueue inQ . Just) xs
+                atomically $ writeTQueue inQ Nothing
+                
+  concurrently_ job1 job2
 
 roundRobin :: [Task () b] -> Task () b
 roundRobin tasks _ output = do
   (jobs,outQs) <- fmap unzip $ forM tasks $ \task -> do
-    outQ <- atomically $ newTQueue
+    outQ <- atomically newTQueue
     let job = do
           task (return Nothing) (atomically . writeTQueue outQ . Just)
           atomically $ writeTQueue outQ Nothing
@@ -45,29 +67,31 @@ roundRobin tasks _ output = do
           output x
           collect (q:next) qs
         
-spread :: Int -> Task a b -> Task b c -> Task a c
-spread j t1 t2 input output = do
-  inQ  <- atomically $ newTQueue
-  outQ <- atomically $ newTQueue
+spread :: Int -> Task a b -> Task a b
+spread j task input output = do
+  inQ  <- atomically newTQueue
+  outQ <- atomically newTQueue
   feed inQ
     `concurrently_` jobs inQ outQ
     `concurrently_` collect outQ
   where
     feed inQ = do
-      t1 input (atomically . writeTQueue inQ . Just)
+      forInput input $ atomically . writeTQueue inQ . Just
       atomically $ writeTQueue inQ Nothing
-
+    
     jobs inQ outQ = do
       replicateConcurrently_ j (job inQ outQ)
       atomically $ writeTQueue outQ Nothing
 
-    job inQ outQ = t2 (atomically (readQ inQ)) (atomically . writeTQueue outQ . Just)
+    job inQ outQ = task
+      (atomically (readQ inQ))
+      (atomically . writeTQueue outQ . Just)
 
     collect outQ = forQ outQ output
 
 withTask :: Task () b -> (IO (Maybe b) -> IO c) -> IO c
 withTask task f = do
-  outQ <- atomically $ newTQueue
+  outQ <- atomically newTQueue
   withAsync (job outQ) $ \_ -> f $ atomically $ readQ outQ
   where
     job outQ = do

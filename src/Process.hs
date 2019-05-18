@@ -3,7 +3,6 @@ module Process
   , hFold
   , hGetLines ) where
 
-import Control.Monad
 import Control.Exception
 
 import System.IO

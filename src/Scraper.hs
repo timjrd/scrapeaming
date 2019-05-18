@@ -10,9 +10,9 @@ import Control.Exception
 import Data.Function ((&))
 import Data.List
 import Data.IORef
+import qualified Data.Set as S
 
 import System.FilePath
-import System.IO
 import qualified System.Timeout as TO
 
 import Environment
@@ -83,11 +83,9 @@ task display log scraper ext token input output = do
     result <- job chromium tmp xs found
     found' <- readIORef found
     case result of
-      Nothing -> do
-        found' <- readIORef found
-        if found'
-          then log' Info    "has timed out with some data" xs
-          else log' Warning "has timed out with no data"   xs
+      Nothing -> if found'
+        then log' Info    "has timed out with some data" xs
+        else log' Warning "has timed out with no data"   xs
       Just n | n > maxOutputs scraper -> log' Info  "has collected enough data" xs
              | otherwise              -> log' Error "was interrupted"           xs
              
@@ -102,16 +100,15 @@ task display log scraper ext token input output = do
       , "--load-extension=" ++ ext
       , head xs ]
       $ \_ _ herr -> TO.timeout (timeout scraper * 10^6)
-                     $ hFold herr 0 (processLine found xs)
+                     $ fst <$> hFold herr (0, S.empty) (processLine found xs)
     
-    processLine found xs n line = case my of
-      Nothing -> return (True,n)
-      Just [] -> return (True,n)
-      Just y  -> uninterruptibleMask_ $ do
+    processLine found xs (n,ys) line = case my of
+      Just y | y `S.notMember` ys -> uninterruptibleMask_ $ do
         output (y:xs)
         writeIORef found True
         log' Info "found some url" (y:xs)
-        return (n+1 <= maxOutputs scraper, n+1)
+        return (n+1 <= maxOutputs scraper, (n+1, S.insert y ys))
+      _ -> return (True,(n,ys))
       where
         my = words line
           & dropWhile (/=token)

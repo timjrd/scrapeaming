@@ -21,4 +21,4 @@ getJobs = do
     Just jobs -> return $ read jobs
     Nothing -> do
       cores <- getNumProcessors
-      return $ cores * 2
+      return $ cores * 4

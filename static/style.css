@@ -146,6 +146,8 @@ input:hover, input:focus
     
     height: 10ex;
     width: calc(100% - 2 * var(--quad)) !important;
+
+    z-index: -1;
 }
 #logs li
 {
@@ -160,6 +162,7 @@ input:hover, input:focus
     margin-left : var(--quad) !important;
     margin-right: var(--quad) !important;
     background-color: black;
+    border: none;
 }
 
 #results

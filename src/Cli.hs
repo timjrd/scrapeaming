@@ -3,9 +3,7 @@ module Cli (main) where
 import Control.Exception
 
 import Data.IORef
-import Data.List
 
-import System.Environment
 import System.IO
 import System.Console.ANSI
 
