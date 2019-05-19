@@ -7,8 +7,11 @@ function main() {
     document.querySelector("button[type=submit]").click();
   }
   else {
-    for (let e of document.querySelectorAll("h3 > a.ac-algo"))
-      outputUrl(e.getAttribute("href"));
+    for (let e of document.querySelectorAll("h3 > a.ac-algo")) {
+      const s = e.href.split("/RU=")[1];
+      if (s !== undefined)
+	outputUrl(decodeURIComponent(s.split("/")[0]));
+    }
     const next = document.querySelector(".next");
     if (next !== null)
       next.click();
